@@ -78,12 +78,16 @@ st.markdown("""
 
 def run_research(company: str, competitors: list[str], progress_placeholder):
     """Run the CrewAI research pipeline and return results."""
+    # Load .env file (for local runs)
     load_dotenv()
 
     # Set up environment for Streamlit Cloud (secrets → env vars)
-    for key in ["GROQ_API_KEY", "GEMINI_API_KEY", "SERPER_API_KEY", "MODEL_NAME", "OPENAI_API_KEY"]:
-        if key in st.secrets:
-            os.environ[key] = st.secrets[key]
+    try:
+        for key in ["GROQ_API_KEY", "GEMINI_API_KEY", "SERPER_API_KEY", "MODEL_NAME", "OPENAI_API_KEY"]:
+            if key in st.secrets:
+                os.environ[key] = st.secrets[key]
+    except Exception:
+        pass  # No secrets configured (local mode uses .env)
 
     # Default to Groq if no model specified
     if not os.getenv("MODEL_NAME"):

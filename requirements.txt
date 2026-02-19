@@ -1,5 +1,6 @@
 crewai>=1.9.0
 crewai-tools>=1.9.0
+litellm
 python-dotenv>=1.0.0
 python-pptx>=0.6.21
 streamlit>=1.30.0
