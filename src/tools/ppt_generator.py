@@ -5,6 +5,7 @@ Converts the markdown competitive intelligence report into a
 professional PowerPoint presentation with dark theme styling.
 """
 
+import os
 import re
 from datetime import datetime
 
@@ -35,6 +36,16 @@ SLIDE_HEIGHT = Inches(7.5)
 
 # Max characters per bullet to prevent overflow
 MAX_BULLET_CHARS = 120
+
+
+def _get_blank_layout(prs):
+    """Get a blank slide layout safely."""
+    # Try layout 6 (blank) first, then fall back to last layout
+    try:
+        layout = prs.slide_layouts[6]
+    except IndexError:
+        layout = prs.slide_layouts[-1]
+    return layout
 
 
 def _truncate(text: str, max_chars: int = MAX_BULLET_CHARS) -> str:
@@ -192,7 +203,7 @@ def _slide_title(slide, left, top, width, text, font_size=32, color=WHITE):
 
 def _build_title_slide(prs, company, competitors, date_str):
     """Slide 1: Title slide with company name and report info."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
+    slide = prs.slides.add_slide(_get_blank_layout(prs))  # blank
     _set_slide_bg(slide, BG_DARKER)
 
     # Top accent line
@@ -227,7 +238,7 @@ def _build_title_slide(prs, company, competitors, date_str):
 
 def _build_executive_summary(prs, section_text):
     """Slide 2: Executive Summary with key findings."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide = prs.slides.add_slide(_get_blank_layout(prs))
     _set_slide_bg(slide)
 
     _slide_title(slide, Inches(0.8), Inches(0.5), Inches(11), "Executive Summary")
@@ -265,7 +276,7 @@ def _build_executive_summary(prs, section_text):
 
 def _build_market_landscape(prs, section_text):
     """Slide 3: Market Landscape Overview."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide = prs.slides.add_slide(_get_blank_layout(prs))
     _set_slide_bg(slide)
 
     _slide_title(slide, Inches(0.8), Inches(0.5), Inches(11), "Market Landscape")
@@ -302,7 +313,7 @@ def _build_market_landscape(prs, section_text):
 
 def _build_competitor_profile(prs, name, section_text):
     """Slide 4+: Individual competitor profile."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide = prs.slides.add_slide(_get_blank_layout(prs))
     _set_slide_bg(slide)
 
     _slide_title(slide, Inches(0.8), Inches(0.5), Inches(11),
@@ -352,7 +363,7 @@ def _build_competitor_profile(prs, name, section_text):
 
 def _build_competitive_matrix(prs, section_text):
     """Slide: Competitive comparison matrix as a table."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide = prs.slides.add_slide(_get_blank_layout(prs))
     _set_slide_bg(slide)
 
     _slide_title(slide, Inches(0.8), Inches(0.5), Inches(11), "Competitive Analysis")
@@ -371,15 +382,25 @@ def _build_competitive_matrix(prs, section_text):
         return
 
     num_cols = len(headers)
-    num_rows = len(rows) + 1  # +1 for header
-    col_width = min(Inches(2.2), Inches(11.5) / num_cols)
+    num_rows = min(len(rows) + 1, 8)  # +1 for header, cap at 8 rows
+    rows = rows[:num_rows - 1]  # Trim rows to match
+
+    # Calculate table dimensions (use explicit Inches to avoid EMU math issues)
+    table_width = Inches(min(11.5, num_cols * 2.2))
+    row_height_val = 0.45
+    table_height = Inches(row_height_val * num_rows)
 
     table_shape = slide.shapes.add_table(
         num_rows, num_cols,
         Inches(0.8), Inches(1.5),
-        col_width * num_cols, Inches(0.5) * num_rows
+        table_width, table_height
     )
     table = table_shape.table
+
+    # Set column widths evenly
+    single_col_width = int(table_width / num_cols)
+    for col in table.columns:
+        col.width = single_col_width
 
     # Style header row
     for i, header in enumerate(headers):
@@ -387,8 +408,9 @@ def _build_competitive_matrix(prs, section_text):
         cell.text = _clean_markdown(header)
         cell.fill.solid()
         cell.fill.fore_color.rgb = TABLE_HEADER_BG
+        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
         for p in cell.text_frame.paragraphs:
-            p.font.size = Pt(13)
+            p.font.size = Pt(12)
             p.font.color.rgb = ACCENT_BLUE
             p.font.bold = True
             p.font.name = FONT_NAME
@@ -398,18 +420,20 @@ def _build_competitive_matrix(prs, section_text):
         bg = TABLE_ROW_BG if r % 2 == 0 else TABLE_ALT_BG
         for c in range(num_cols):
             cell = table.cell(r + 1, c)
-            cell.text = _clean_markdown(row_data[c]) if c < len(row_data) else ""
+            cell_text = _clean_markdown(row_data[c]) if c < len(row_data) else ""
+            cell.text = _truncate(cell_text, 40)
             cell.fill.solid()
             cell.fill.fore_color.rgb = bg
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             for p in cell.text_frame.paragraphs:
-                p.font.size = Pt(12)
+                p.font.size = Pt(11)
                 p.font.color.rgb = WHITE
                 p.font.name = FONT_NAME
 
 
 def _build_swot(prs, section_text):
     """Slide: SWOT Analysis in 2x2 grid."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide = prs.slides.add_slide(_get_blank_layout(prs))
     _set_slide_bg(slide)
 
     _slide_title(slide, Inches(0.8), Inches(0.5), Inches(11), "SWOT Analysis")
@@ -496,7 +520,7 @@ def _build_swot(prs, section_text):
 
 def _build_opportunities_threats(prs, section_text):
     """Slide: Opportunities & Threats ranked lists."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide = prs.slides.add_slide(_get_blank_layout(prs))
     _set_slide_bg(slide)
 
     _slide_title(slide, Inches(0.8), Inches(0.5), Inches(11), "Opportunities & Threats")
@@ -553,7 +577,7 @@ def _build_opportunities_threats(prs, section_text):
 
 def _build_recommendations(prs, section_text):
     """Slide: Strategic Recommendations with timeline."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide = prs.slides.add_slide(_get_blank_layout(prs))
     _set_slide_bg(slide)
 
     _slide_title(slide, Inches(0.8), Inches(0.5), Inches(11), "Strategic Recommendations")
@@ -605,7 +629,7 @@ def _build_recommendations(prs, section_text):
 
 def _build_closing_slide(prs):
     """Final slide with branding."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide = prs.slides.add_slide(_get_blank_layout(prs))
     _set_slide_bg(slide, BG_DARKER)
 
     _add_shape_bg(slide, Inches(0), Inches(0), SLIDE_WIDTH, Inches(0.06), ACCENT_BLUE)
@@ -643,6 +667,11 @@ def generate_pptx(report_text: str, company: str, competitors: list[str],
     Returns:
         The output file path
     """
+    # Ensure output directory exists
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
     prs = Presentation()
     prs.slide_width = SLIDE_WIDTH
     prs.slide_height = SLIDE_HEIGHT
