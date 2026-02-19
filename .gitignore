@@ -5,3 +5,4 @@ output/*.md
 output/*.json
 output/*.pptx
 .venv/
+.streamlit/secrets.toml
