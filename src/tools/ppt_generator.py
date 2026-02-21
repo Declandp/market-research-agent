@@ -2,7 +2,8 @@
 PowerPoint Report Generator
 ============================
 Converts the markdown competitive intelligence report into a
-professional PowerPoint presentation with a bright, modern theme.
+professional PowerPoint presentation.
+BCG-inspired consulting theme: clean, minimal, authoritative.
 """
 
 import os
@@ -15,41 +16,46 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR, MSO_AUTO_SIZE
 from pptx.enum.shapes import MSO_SHAPE
 
-# ── Bright Theme Colors ──────────────────────────────────
+# ── BCG-Inspired Theme ───────────────────────────────────
+# Clean whites, deep greens, minimal accents
 BG_WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-BG_LIGHT = RGBColor(0xF8, 0xF9, 0xFA)       # Very light gray
-CARD_BG = RGBColor(0xF0, 0xF4, 0xF8)         # Light blue-gray card
-TITLE_BG = RGBColor(0x1A, 0x56, 0xDB)        # Bold blue for title slide
-DARK_TEXT = RGBColor(0x1E, 0x29, 0x3B)        # Near-black text
-MED_TEXT = RGBColor(0x4B, 0x55, 0x63)         # Medium gray text
-LIGHT_TEXT = RGBColor(0x6B, 0x72, 0x80)       # Light gray text
+BG_OFF_WHITE = RGBColor(0xFA, 0xFA, 0xFA)
+TITLE_BG = RGBColor(0x00, 0x3B, 0x2D)         # BCG deep green
+TITLE_BG_ALT = RGBColor(0x00, 0x2E, 0x23)     # Darker green
 
-ACCENT_BLUE = RGBColor(0x1A, 0x56, 0xDB)     # Primary blue
-ACCENT_GREEN = RGBColor(0x05, 0x96, 0x69)     # Success green
-ACCENT_RED = RGBColor(0xDC, 0x26, 0x26)       # Danger red
-ACCENT_YELLOW = RGBColor(0xD9, 0x77, 0x06)    # Warning amber
-ACCENT_PURPLE = RGBColor(0x7C, 0x3A, 0xED)    # Purple
+BLACK = RGBColor(0x1A, 0x1A, 0x1A)
+DARK_TEXT = RGBColor(0x2D, 0x2D, 0x2D)
+MED_TEXT = RGBColor(0x5A, 0x5A, 0x5A)
+LIGHT_TEXT = RGBColor(0x8C, 0x8C, 0x8C)
 
-TABLE_HEADER_BG = RGBColor(0x1A, 0x56, 0xDB)
-TABLE_ROW_BG = RGBColor(0xFF, 0xFF, 0xFF)
-TABLE_ALT_BG = RGBColor(0xF0, 0xF4, 0xF8)
-TABLE_BORDER = RGBColor(0xE2, 0xE8, 0xF0)
+BCG_GREEN = RGBColor(0x00, 0x6B, 0x4F)        # Primary accent
+BCG_GREEN_LIGHT = RGBColor(0xE6, 0xF2, 0xEF)  # Light green tint
+BCG_GREEN_MED = RGBColor(0x00, 0x8A, 0x68)    # Medium green
+ACCENT_RED = RGBColor(0xC4, 0x2B, 0x2B)       # For threats/warnings
+ACCENT_AMBER = RGBColor(0xB8, 0x6E, 0x00)     # For caution
+ACCENT_TEAL = RGBColor(0x00, 0x7A, 0x87)      # For opportunities
 
-FONT_NAME = "Calibri"
+RULE_COLOR = RGBColor(0xD4, 0xD4, 0xD4)       # Thin divider lines
+CARD_BG = RGBColor(0xF5, 0xF7, 0xF6)          # Subtle card background
+TABLE_HEADER = RGBColor(0x00, 0x3B, 0x2D)
+TABLE_ROW = RGBColor(0xFF, 0xFF, 0xFF)
+TABLE_ALT = RGBColor(0xF5, 0xF7, 0xF6)
+
+FONT_TITLE = "Georgia"
+FONT_BODY = "Calibri"
 SLIDE_WIDTH = Inches(13.333)
 SLIDE_HEIGHT = Inches(7.5)
 
 
 def _get_blank_layout(prs):
-    """Get a blank slide layout safely."""
     try:
         return prs.slide_layouts[6]
     except IndexError:
         return prs.slide_layouts[-1]
 
 
-def _clean_markdown(text: str) -> str:
-    """Remove common markdown formatting from text."""
+def _clean(text: str) -> str:
+    """Strip markdown formatting."""
     text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
     text = re.sub(r'\*(.+?)\*', r'\1', text)
     text = re.sub(r'`(.+?)`', r'\1', text)
@@ -57,99 +63,85 @@ def _clean_markdown(text: str) -> str:
     return text.strip()
 
 
-def _set_slide_bg(slide, color=BG_WHITE):
-    """Set solid background color for a slide."""
+def _bg(slide, color=BG_WHITE):
     fill = slide.background.fill
     fill.solid()
     fill.fore_color.rgb = color
 
 
-def _add_shape(slide, left, top, width, height, color):
-    """Add a colored rectangle shape."""
-    shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = color
-    shape.line.fill.background()
-    return shape
+def _rect(slide, left, top, w, h, color):
+    s = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, w, h)
+    s.fill.solid()
+    s.fill.fore_color.rgb = color
+    s.line.fill.background()
+    return s
 
 
-def _add_rounded_card(slide, left, top, width, height, color=CARD_BG):
-    """Add a rounded rectangle card background."""
-    shape = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = color
-    shape.line.color.rgb = RGBColor(0xE2, 0xE8, 0xF0)
-    shape.line.width = Pt(1)
-    return shape
+def _line(slide, left, top, width):
+    """Add a thin horizontal rule."""
+    return _rect(slide, left, top, width, Inches(0.015), RULE_COLOR)
 
 
-def _add_text(slide, left, top, width, height, text, font_size=18,
-              color=DARK_TEXT, bold=False, alignment=PP_ALIGN.LEFT):
-    """Add a text box with styled text and auto-shrink."""
-    txBox = slide.shapes.add_textbox(left, top, width, height)
+def _text(slide, left, top, w, h, text, size=16, color=DARK_TEXT,
+          bold=False, align=PP_ALIGN.LEFT, font=FONT_BODY):
+    txBox = slide.shapes.add_textbox(left, top, w, h)
     tf = txBox.text_frame
     tf.word_wrap = True
     tf.auto_size = MSO_AUTO_SIZE.NONE
     p = tf.paragraphs[0]
-    p.text = _clean_markdown(text)
-    p.font.size = Pt(font_size)
+    p.text = _clean(text)
+    p.font.size = Pt(size)
     p.font.color.rgb = color
     p.font.bold = bold
-    p.font.name = FONT_NAME
-    p.alignment = alignment
+    p.font.name = font
+    p.alignment = align
     return txBox
 
 
-def _add_bullets(text_frame, items, font_size=14, color=DARK_TEXT,
-                 bold_label=False, accent_color=ACCENT_BLUE):
-    """Add bullet points to a text frame. No truncation — text wraps naturally."""
+def _bullets(tf, items, size=13, color=DARK_TEXT, label_color=BCG_GREEN):
+    """Add bullet list. Full text, no truncation."""
     for i, item in enumerate(items):
-        p = text_frame.paragraphs[0] if i == 0 else text_frame.add_paragraph()
-
-        # Clean markdown
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         clean = item.strip().lstrip("*-•")
         clean = re.sub(r'^\d+[\.\)]\s*', '', clean)
-        clean = _clean_markdown(clean)
+        clean = _clean(clean)
 
-        p.font.size = Pt(font_size)
+        p.font.size = Pt(size)
         p.font.color.rgb = color
-        p.font.name = FONT_NAME
+        p.font.name = FONT_BODY
         p.space_before = Pt(2)
-        p.space_after = Pt(4)
-        p.level = 0
+        p.space_after = Pt(6)
 
-        if bold_label and ":" in clean:
+        if ":" in clean:
             parts = clean.split(":", 1)
-            run1 = p.add_run()
-            run1.text = parts[0] + ":"
-            run1.font.size = Pt(font_size)
-            run1.font.color.rgb = accent_color
-            run1.font.bold = True
-            run1.font.name = FONT_NAME
+            r1 = p.add_run()
+            r1.text = parts[0] + ":"
+            r1.font.size = Pt(size)
+            r1.font.color.rgb = label_color
+            r1.font.bold = True
+            r1.font.name = FONT_BODY
             if len(parts) > 1:
-                run2 = p.add_run()
-                run2.text = " " + parts[1].strip()
-                run2.font.size = Pt(font_size)
-                run2.font.color.rgb = color
-                run2.font.name = FONT_NAME
+                r2 = p.add_run()
+                r2.text = " " + parts[1].strip()
+                r2.font.size = Pt(size)
+                r2.font.color.rgb = color
+                r2.font.name = FONT_BODY
         else:
             p.text = clean
 
 
-def _section_title(slide, left, top, width, text, font_size=28):
-    """Add a section title with colored accent bar."""
-    _add_shape(slide, left, top + Inches(0.05), Inches(0.06), Inches(0.45), ACCENT_BLUE)
-    _add_text(slide, left + Inches(0.2), top, width, Inches(0.6),
-              text, font_size=font_size, color=DARK_TEXT, bold=True)
+def _section_header(slide, text):
+    """Consulting-style section header: thin green bar + title + rule."""
+    _rect(slide, Inches(0.8), Inches(0.45), Inches(0.05), Inches(0.4), BCG_GREEN)
+    _text(slide, Inches(1.0), Inches(0.35), Inches(10), Inches(0.6),
+          text, size=24, color=BLACK, bold=True, font=FONT_TITLE)
+    _line(slide, Inches(0.8), Inches(1.0), Inches(11.7))
 
 
 def _parse_sections(report_text: str) -> dict:
-    """Parse markdown report into sections by ## headers."""
     sections = {}
     current_key = "intro"
     current_content = []
-
     for line in report_text.split("\n"):
         if line.startswith("## "):
             if current_content:
@@ -160,36 +152,30 @@ def _parse_sections(report_text: str) -> dict:
             sections["title"] = re.sub(r'^#+\s*', '', line).strip()
         else:
             current_content.append(line)
-
     if current_content:
         sections[current_key] = "\n".join(current_content)
-
     return sections
 
 
-def _extract_bullets(text: str) -> list[str]:
-    """Extract bullet points from markdown text."""
+def _get_bullets(text: str) -> list[str]:
     bullets = []
     for line in text.split("\n"):
-        stripped = line.strip()
-        if stripped and (stripped.startswith(("-", "*", "•")) or
-                         re.match(r'^\d+[\.\)]', stripped)):
-            clean = re.sub(r'^[-*•]\s*', '', stripped)
-            clean = re.sub(r'^\d+[\.\)]\s*', '', clean)
-            clean = _clean_markdown(clean)
-            if clean and len(clean) > 3:
-                bullets.append(clean)
+        s = line.strip()
+        if s and (s.startswith(("-", "*", "•")) or re.match(r'^\d+[\.\)]', s)):
+            c = re.sub(r'^[-*•]\s*', '', s)
+            c = re.sub(r'^\d+[\.\)]\s*', '', c)
+            c = _clean(c)
+            if c and len(c) > 3:
+                bullets.append(c)
     return bullets
 
 
-def _extract_table_data(text: str) -> tuple[list[str], list[list[str]]]:
-    """Extract table headers and rows from markdown table."""
-    headers = []
-    rows = []
+def _get_table(text: str):
+    headers, rows = [], []
     for line in text.split("\n"):
-        stripped = line.strip()
-        if "|" in stripped and not re.match(r'^\|[\s\-:|]+\|$', stripped):
-            cells = [c.strip() for c in stripped.split("|") if c.strip()]
+        s = line.strip()
+        if "|" in s and not re.match(r'^\|[\s\-:|]+\|$', s):
+            cells = [c.strip() for c in s.split("|") if c.strip()]
             if not headers:
                 headers = cells
             else:
@@ -199,224 +185,219 @@ def _extract_table_data(text: str) -> tuple[list[str], list[list[str]]]:
 
 # ── Slide Builders ────────────────────────────────────────
 
-def _build_title_slide(prs, company, competitors, date_str):
-    """Slide 1: Bold blue title slide."""
+def _slide_title(prs, company, competitors, date_str):
     slide = prs.slides.add_slide(_get_blank_layout(prs))
-    _set_slide_bg(slide, TITLE_BG)
+    _bg(slide, TITLE_BG)
 
-    # Top accent stripe
-    _add_shape(slide, Inches(0), Inches(0), SLIDE_WIDTH, Inches(0.08), BG_WHITE)
+    # Subtle top line
+    _rect(slide, Inches(0), Inches(0), SLIDE_WIDTH, Inches(0.04),
+          RGBColor(0x00, 0x8A, 0x68))
 
-    _add_text(slide, Inches(1.5), Inches(1.5), Inches(10), Inches(0.8),
-              "COMPETITIVE INTELLIGENCE REPORT", font_size=18,
-              color=RGBColor(0xBF, 0xDB, 0xFE), bold=True, alignment=PP_ALIGN.CENTER)
+    _text(slide, Inches(1.5), Inches(1.6), Inches(10), Inches(0.6),
+          "Competitive Intelligence Report", size=16,
+          color=RGBColor(0x7F, 0xBF, 0xAD), font=FONT_BODY)
 
-    _add_text(slide, Inches(1.5), Inches(2.3), Inches(10), Inches(1.5),
-              company, font_size=48, color=BG_WHITE, bold=True,
-              alignment=PP_ALIGN.CENTER)
+    _text(slide, Inches(1.5), Inches(2.2), Inches(10), Inches(1.5),
+          company, size=44, color=BG_WHITE, bold=True, font=FONT_TITLE,
+          align=PP_ALIGN.LEFT)
 
-    # Divider line
-    _add_shape(slide, Inches(5.5), Inches(4.0), Inches(2.3), Inches(0.04), BG_WHITE)
+    # Thin white rule
+    _rect(slide, Inches(1.5), Inches(3.9), Inches(3), Inches(0.02), BG_WHITE)
 
-    comp_text = f"Competitors Analyzed: {', '.join(competitors)}"
-    _add_text(slide, Inches(1.5), Inches(4.3), Inches(10), Inches(0.6),
-              comp_text, font_size=16, color=RGBColor(0xBF, 0xDB, 0xFE),
-              alignment=PP_ALIGN.CENTER)
+    _text(slide, Inches(1.5), Inches(4.2), Inches(10), Inches(0.5),
+          f"Competitors: {', '.join(competitors)}", size=14,
+          color=RGBColor(0x7F, 0xBF, 0xAD), font=FONT_BODY)
 
-    _add_text(slide, Inches(1.5), Inches(5.0), Inches(10), Inches(0.5),
-              date_str, font_size=14, color=RGBColor(0x93, 0xB8, 0xEF),
-              alignment=PP_ALIGN.CENTER)
+    _text(slide, Inches(1.5), Inches(4.8), Inches(10), Inches(0.4),
+          date_str, size=12, color=RGBColor(0x5A, 0x9A, 0x8A), font=FONT_BODY)
 
-    # Bottom accent
-    _add_shape(slide, Inches(0), Inches(7.42), SLIDE_WIDTH, Inches(0.08), BG_WHITE)
+    # Confidential footer
+    _text(slide, Inches(1.5), Inches(6.5), Inches(10), Inches(0.3),
+          "CONFIDENTIAL", size=9, color=RGBColor(0x5A, 0x9A, 0x8A),
+          font=FONT_BODY, bold=True)
+
+    _rect(slide, Inches(0), Inches(7.46), SLIDE_WIDTH, Inches(0.04),
+          RGBColor(0x00, 0x8A, 0x68))
 
 
-def _build_executive_summary(prs, section_text):
-    """Slide 2: Executive Summary."""
+def _slide_exec_summary(prs, section_text):
     slide = prs.slides.add_slide(_get_blank_layout(prs))
-    _set_slide_bg(slide, BG_WHITE)
+    _bg(slide)
+    _section_header(slide, "Executive Summary")
 
-    _section_title(slide, Inches(0.8), Inches(0.4), Inches(11), "Executive Summary")
-
-    bullets = _extract_bullets(section_text)
+    bullets = _get_bullets(section_text)
     if not bullets:
-        bullets = [_clean_markdown(l.strip()) for l in section_text.split("\n")
+        bullets = [_clean(l.strip()) for l in section_text.split("\n")
                    if l.strip() and not l.strip().startswith("#")]
 
     if len(bullets) > 5:
         mid = len(bullets) // 2
-        # Left card
-        _add_rounded_card(slide, Inches(0.8), Inches(1.2), Inches(5.7), Inches(5.8))
-        txBox = slide.shapes.add_textbox(Inches(1.1), Inches(1.5), Inches(5.2), Inches(5.3))
+        # Left column
+        txBox = slide.shapes.add_textbox(
+            Inches(0.8), Inches(1.3), Inches(5.7), Inches(5.7))
         tf = txBox.text_frame
         tf.word_wrap = True
-        _add_bullets(tf, bullets[:mid], font_size=13, bold_label=True)
+        _bullets(tf, bullets[:mid], size=13)
 
-        # Right card
-        _add_rounded_card(slide, Inches(6.8), Inches(1.2), Inches(5.7), Inches(5.8))
-        txBox = slide.shapes.add_textbox(Inches(7.1), Inches(1.5), Inches(5.2), Inches(5.3))
+        # Vertical divider
+        _rect(slide, Inches(6.65), Inches(1.3), Inches(0.015), Inches(5.5), RULE_COLOR)
+
+        # Right column
+        txBox = slide.shapes.add_textbox(
+            Inches(6.9), Inches(1.3), Inches(5.7), Inches(5.7))
         tf = txBox.text_frame
         tf.word_wrap = True
-        _add_bullets(tf, bullets[mid:mid+6], font_size=13, bold_label=True)
+        _bullets(tf, bullets[mid:mid+6], size=13)
     else:
-        _add_rounded_card(slide, Inches(0.8), Inches(1.2), Inches(11.7), Inches(5.8))
-        txBox = slide.shapes.add_textbox(Inches(1.1), Inches(1.5), Inches(11.2), Inches(5.3))
+        txBox = slide.shapes.add_textbox(
+            Inches(0.8), Inches(1.3), Inches(11.7), Inches(5.7))
         tf = txBox.text_frame
         tf.word_wrap = True
-        _add_bullets(tf, bullets[:8], font_size=14, bold_label=True)
+        _bullets(tf, bullets[:8], size=14)
 
 
-def _build_market_landscape(prs, section_text):
-    """Slide 3: Market Landscape Overview."""
+def _slide_market(prs, section_text):
     slide = prs.slides.add_slide(_get_blank_layout(prs))
-    _set_slide_bg(slide, BG_WHITE)
-
-    _section_title(slide, Inches(0.8), Inches(0.4), Inches(11), "Market Landscape")
+    _bg(slide)
+    _section_header(slide, "Market Landscape")
 
     paragraphs = [p.strip() for p in section_text.split("\n")
                   if p.strip() and not p.strip().startswith("#")]
-    bullets = _extract_bullets(section_text)
+    bullets = _get_bullets(section_text)
 
-    # Body text (left)
-    text_content = []
+    body = []
     for p in paragraphs:
         if not p.startswith(("-", "*", "•")) and not re.match(r'^\d+[\.\)]', p):
-            clean = _clean_markdown(p)
-            if clean and len(clean) > 10:
-                text_content.append(clean)
+            c = _clean(p)
+            if c and len(c) > 10:
+                body.append(c)
 
-    if text_content:
-        _add_rounded_card(slide, Inches(0.8), Inches(1.2), Inches(5.7), Inches(5.8))
-        _add_text(slide, Inches(1.1), Inches(1.4), Inches(5.2), Inches(5.4),
-                  "\n\n".join(text_content[:4]), font_size=12, color=MED_TEXT)
+    if body:
+        _text(slide, Inches(0.8), Inches(1.3), Inches(5.5), Inches(5.5),
+              "\n\n".join(body[:4]), size=12, color=MED_TEXT)
 
-    # Key trends (right)
     if bullets:
-        _add_rounded_card(slide, Inches(6.8), Inches(1.2), Inches(5.7), Inches(5.8))
-        _add_text(slide, Inches(7.1), Inches(1.4), Inches(5), Inches(0.5),
-                  "Key Trends", font_size=18, color=ACCENT_BLUE, bold=True)
-        txBox = slide.shapes.add_textbox(Inches(7.1), Inches(2.0), Inches(5.2), Inches(4.8))
+        # Vertical divider
+        _rect(slide, Inches(6.65), Inches(1.3), Inches(0.015), Inches(5.5), RULE_COLOR)
+
+        _text(slide, Inches(7.0), Inches(1.3), Inches(5), Inches(0.4),
+              "Key Trends", size=16, color=BCG_GREEN, bold=True, font=FONT_TITLE)
+        _line(slide, Inches(7.0), Inches(1.75), Inches(5.5))
+
+        txBox = slide.shapes.add_textbox(
+            Inches(7.0), Inches(1.95), Inches(5.5), Inches(5.0))
         tf = txBox.text_frame
         tf.word_wrap = True
-        _add_bullets(tf, bullets[:6], font_size=12, bold_label=True)
+        _bullets(tf, bullets[:6], size=12)
 
 
-def _build_competitor_profile(prs, name, section_text):
-    """Slide 4+: Individual competitor profile."""
+def _slide_competitor(prs, name, section_text):
     slide = prs.slides.add_slide(_get_blank_layout(prs))
-    _set_slide_bg(slide, BG_WHITE)
-
-    _section_title(slide, Inches(0.8), Inches(0.4), Inches(10),
-                   f"Competitor Profile: {name}")
+    _bg(slide)
+    _section_header(slide, f"Competitor: {name}")
 
     # Threat badge
     threat_match = re.search(r'[Tt]hreat\s*[Ll]evel.*?(\d+)/10', section_text)
     threat_level = int(threat_match.group(1)) if threat_match else 5
-    threat_color = ACCENT_GREEN if threat_level <= 3 else (ACCENT_YELLOW if threat_level <= 6 else ACCENT_RED)
-    _add_rounded_card(slide, Inches(10.5), Inches(0.35), Inches(2.3), Inches(0.7), threat_color)
-    _add_text(slide, Inches(10.5), Inches(0.4), Inches(2.3), Inches(0.6),
-              f"Threat: {threat_level}/10", font_size=16, color=BG_WHITE, bold=True,
-              alignment=PP_ALIGN.CENTER)
+    badge_color = BCG_GREEN if threat_level <= 3 else (ACCENT_AMBER if threat_level <= 6 else ACCENT_RED)
+    _rect(slide, Inches(10.8), Inches(0.35), Inches(1.8), Inches(0.55), badge_color)
+    _text(slide, Inches(10.8), Inches(0.38), Inches(1.8), Inches(0.5),
+          f"Threat: {threat_level}/10", size=13, color=BG_WHITE, bold=True,
+          align=PP_ALIGN.CENTER)
 
-    bullets = _extract_bullets(section_text)
+    bullets = _get_bullets(section_text)
     if not bullets:
-        bullets = [_clean_markdown(l.strip()) for l in section_text.split("\n")
+        bullets = [_clean(l.strip()) for l in section_text.split("\n")
                    if l.strip() and not l.strip().startswith("#")]
 
     mid = max(1, len(bullets) // 2)
 
     # Left: Overview
-    _add_rounded_card(slide, Inches(0.8), Inches(1.3), Inches(5.6), Inches(5.7))
-    _add_text(slide, Inches(1.0), Inches(1.45), Inches(5), Inches(0.5),
-              "Overview", font_size=18, color=ACCENT_BLUE, bold=True)
+    _text(slide, Inches(0.8), Inches(1.3), Inches(5), Inches(0.4),
+          "Overview", size=16, color=BCG_GREEN, bold=True, font=FONT_TITLE)
+    _line(slide, Inches(0.8), Inches(1.75), Inches(5.5))
     if bullets[:mid]:
-        txBox = slide.shapes.add_textbox(Inches(1.0), Inches(2.1), Inches(5.2), Inches(4.7))
+        txBox = slide.shapes.add_textbox(
+            Inches(0.8), Inches(1.95), Inches(5.5), Inches(5.0))
         tf = txBox.text_frame
         tf.word_wrap = True
-        _add_bullets(tf, bullets[:mid][:6], font_size=12, bold_label=True)
+        _bullets(tf, bullets[:mid][:7], size=12)
+
+    # Vertical divider
+    _rect(slide, Inches(6.65), Inches(1.3), Inches(0.015), Inches(5.5), RULE_COLOR)
 
     # Right: Strengths & Weaknesses
-    _add_rounded_card(slide, Inches(6.8), Inches(1.3), Inches(5.6), Inches(5.7))
-    _add_text(slide, Inches(7.0), Inches(1.45), Inches(5), Inches(0.5),
-              "Strengths & Weaknesses", font_size=18, color=ACCENT_BLUE, bold=True)
+    _text(slide, Inches(7.0), Inches(1.3), Inches(5), Inches(0.4),
+          "Strengths & Weaknesses", size=16, color=BCG_GREEN, bold=True, font=FONT_TITLE)
+    _line(slide, Inches(7.0), Inches(1.75), Inches(5.5))
     if bullets[mid:]:
-        txBox = slide.shapes.add_textbox(Inches(7.0), Inches(2.1), Inches(5.2), Inches(4.7))
+        txBox = slide.shapes.add_textbox(
+            Inches(7.0), Inches(1.95), Inches(5.5), Inches(5.0))
         tf = txBox.text_frame
         tf.word_wrap = True
-        _add_bullets(tf, bullets[mid:][:6], font_size=12, bold_label=True)
+        _bullets(tf, bullets[mid:][:7], size=12)
 
 
-def _build_competitive_matrix(prs, section_text):
-    """Slide: Competitive comparison matrix as a table."""
+def _slide_matrix(prs, section_text):
     slide = prs.slides.add_slide(_get_blank_layout(prs))
-    _set_slide_bg(slide, BG_WHITE)
+    _bg(slide)
+    _section_header(slide, "Competitive Comparison")
 
-    _section_title(slide, Inches(0.8), Inches(0.4), Inches(11), "Competitive Analysis")
-
-    headers, rows = _extract_table_data(section_text)
+    headers, rows = _get_table(section_text)
 
     if not headers or not rows:
-        bullets = _extract_bullets(section_text)
+        bullets = _get_bullets(section_text)
         if bullets:
-            _add_rounded_card(slide, Inches(0.8), Inches(1.2), Inches(11.7), Inches(5.8))
-            txBox = slide.shapes.add_textbox(Inches(1.1), Inches(1.5), Inches(11.2), Inches(5.3))
+            txBox = slide.shapes.add_textbox(
+                Inches(0.8), Inches(1.3), Inches(11.7), Inches(5.7))
             tf = txBox.text_frame
             tf.word_wrap = True
-            _add_bullets(tf, bullets[:10], font_size=13, bold_label=True)
+            _bullets(tf, bullets[:10], size=13)
         return
 
-    num_cols = len(headers)
-    num_rows = min(len(rows) + 1, 8)
-    rows = rows[:num_rows - 1]
+    nc = len(headers)
+    nr = min(len(rows) + 1, 8)
+    rows = rows[:nr - 1]
 
-    table_width = Inches(min(11.5, num_cols * 2.2))
-    table_height = Inches(0.5 * num_rows)
+    tw = Inches(min(11.5, nc * 2.2))
+    th = Inches(0.5 * nr)
+    ts = slide.shapes.add_table(nr, nc, Inches(0.8), Inches(1.3), tw, th)
+    table = ts.table
 
-    table_shape = slide.shapes.add_table(
-        num_rows, num_cols,
-        Inches(0.8), Inches(1.4),
-        table_width, table_height
-    )
-    table = table_shape.table
-
-    col_w = int(table_width / num_cols)
+    cw = int(tw / nc)
     for col in table.columns:
-        col.width = col_w
+        col.width = cw
 
-    # Header row
-    for i, header in enumerate(headers):
+    for i, h in enumerate(headers):
         cell = table.cell(0, i)
-        cell.text = _clean_markdown(header)
+        cell.text = _clean(h)
         cell.fill.solid()
-        cell.fill.fore_color.rgb = TABLE_HEADER_BG
+        cell.fill.fore_color.rgb = TABLE_HEADER
         cell.vertical_anchor = MSO_ANCHOR.MIDDLE
         for p in cell.text_frame.paragraphs:
-            p.font.size = Pt(12)
+            p.font.size = Pt(11)
             p.font.color.rgb = BG_WHITE
             p.font.bold = True
-            p.font.name = FONT_NAME
+            p.font.name = FONT_BODY
 
-    # Data rows
-    for r, row_data in enumerate(rows):
-        bg = TABLE_ROW_BG if r % 2 == 0 else TABLE_ALT_BG
-        for c in range(num_cols):
+    for r, rd in enumerate(rows):
+        bg = TABLE_ROW if r % 2 == 0 else TABLE_ALT
+        for c in range(nc):
             cell = table.cell(r + 1, c)
-            cell.text = _clean_markdown(row_data[c]) if c < len(row_data) else ""
+            cell.text = _clean(rd[c]) if c < len(rd) else ""
             cell.fill.solid()
             cell.fill.fore_color.rgb = bg
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             for p in cell.text_frame.paragraphs:
-                p.font.size = Pt(11)
+                p.font.size = Pt(10)
                 p.font.color.rgb = DARK_TEXT
-                p.font.name = FONT_NAME
+                p.font.name = FONT_BODY
 
 
-def _build_swot(prs, section_text):
-    """Slide: SWOT Analysis in 2x2 grid."""
+def _slide_swot(prs, section_text):
     slide = prs.slides.add_slide(_get_blank_layout(prs))
-    _set_slide_bg(slide, BG_WHITE)
-
-    _section_title(slide, Inches(0.8), Inches(0.4), Inches(11), "SWOT Analysis")
+    _bg(slide)
+    _section_header(slide, "SWOT Analysis")
 
     swot = {"Strengths": [], "Weaknesses": [], "Opportunities": [], "Threats": []}
     current = None
@@ -425,217 +406,205 @@ def _build_swot(prs, section_text):
         stripped = line.strip()
         lower = stripped.lower()
 
-        matched_key = None
+        matched = None
         for key in swot:
             if key.lower() in lower:
-                matched_key = key
+                matched = key
                 break
 
-        if matched_key:
-            colon_match = re.search(
-                r'(?:strengths|weaknesses|opportunities|threats)\s*:?\s*:(.+)',
-                stripped, re.IGNORECASE)
-            if colon_match:
-                items_text = colon_match.group(1).strip()
-                items = [i.strip().rstrip(".") for i in re.split(r'[,;]', items_text) if i.strip()]
-                swot[matched_key].extend(items)
-                current = matched_key
+        if matched:
+            cm = re.search(r'(?:strengths|weaknesses|opportunities|threats)\s*:?\s*:(.+)',
+                           stripped, re.IGNORECASE)
+            if cm:
+                items = [i.strip().rstrip(".") for i in re.split(r'[,;]', cm.group(1)) if i.strip()]
+                swot[matched].extend(items)
+                current = matched
             elif ":" in stripped or stripped.startswith("#") or stripped.startswith("*"):
-                current = matched_key
+                current = matched
         elif current and stripped.startswith(("-", "*", "•")):
             clean = re.sub(r'^[-*•]\s*', '', stripped)
-            clean = _clean_markdown(clean).rstrip(".")
-
-            sub_match = None
+            clean = _clean(clean).rstrip(".")
+            sub = None
             for key in swot:
                 if clean.lower().startswith(key.lower()):
-                    sub_match = key
+                    sub = key
                     break
-            if sub_match:
-                colon_pos = clean.find(":")
-                if colon_pos > 0:
-                    items_text = clean[colon_pos + 1:].strip()
-                    items = [i.strip().rstrip(".") for i in re.split(r'[,;]', items_text) if i.strip()]
-                    swot[sub_match].extend(items)
+            if sub:
+                cp = clean.find(":")
+                if cp > 0:
+                    items = [i.strip().rstrip(".") for i in re.split(r'[,;]', clean[cp+1:]) if i.strip()]
+                    swot[sub].extend(items)
             elif clean and len(clean) > 3:
                 swot[current].append(clean)
 
-    # 2x2 grid with colored top bars
     grid = [
-        (Inches(0.8), Inches(1.2), "Strengths", ACCENT_GREEN, swot["Strengths"]),
-        (Inches(6.8), Inches(1.2), "Weaknesses", ACCENT_RED, swot["Weaknesses"]),
-        (Inches(0.8), Inches(4.1), "Opportunities", ACCENT_BLUE, swot["Opportunities"]),
-        (Inches(6.8), Inches(4.1), "Threats", ACCENT_YELLOW, swot["Threats"]),
+        (Inches(0.8),  Inches(1.3), "Strengths",     BCG_GREEN,    swot["Strengths"]),
+        (Inches(6.8),  Inches(1.3), "Weaknesses",    ACCENT_RED,   swot["Weaknesses"]),
+        (Inches(0.8),  Inches(4.2), "Opportunities", ACCENT_TEAL,  swot["Opportunities"]),
+        (Inches(6.8),  Inches(4.2), "Threats",        ACCENT_AMBER, swot["Threats"]),
     ]
 
     for left, top, title, color, items in grid:
-        _add_rounded_card(slide, left, top, Inches(5.7), Inches(2.7))
-        # Colored top bar
-        _add_shape(slide, left, top, Inches(5.7), Inches(0.06), color)
+        # Card background
+        _rect(slide, left, top, Inches(5.7), Inches(2.7), CARD_BG)
+        # Top accent bar
+        _rect(slide, left, top, Inches(5.7), Inches(0.04), color)
         # Title
-        _add_text(slide, left + Inches(0.2), top + Inches(0.15),
-                  Inches(5), Inches(0.4), title,
-                  font_size=16, color=color, bold=True)
+        _text(slide, left + Inches(0.2), top + Inches(0.12),
+              Inches(5), Inches(0.35), title,
+              size=15, color=color, bold=True, font=FONT_TITLE)
         # Items
         if items:
             txBox = slide.shapes.add_textbox(
-                left + Inches(0.2), top + Inches(0.6), Inches(5.3), Inches(1.9))
+                left + Inches(0.2), top + Inches(0.55), Inches(5.3), Inches(2.0))
             tf = txBox.text_frame
             tf.word_wrap = True
-            _add_bullets(tf, items[:5], font_size=11, color=MED_TEXT, accent_color=color)
+            _bullets(tf, items[:5], size=11, color=MED_TEXT, label_color=color)
         else:
-            _add_text(slide, left + Inches(0.2), top + Inches(0.8),
-                      Inches(5), Inches(0.4), "No data available",
-                      font_size=11, color=LIGHT_TEXT)
+            _text(slide, left + Inches(0.2), top + Inches(0.7),
+                  Inches(5), Inches(0.3), "No data available",
+                  size=10, color=LIGHT_TEXT)
 
 
-def _build_opportunities_threats(prs, section_text):
-    """Slide: Opportunities & Threats ranked lists."""
+def _slide_opps_threats(prs, section_text):
     slide = prs.slides.add_slide(_get_blank_layout(prs))
-    _set_slide_bg(slide, BG_WHITE)
+    _bg(slide)
+    _section_header(slide, "Opportunities & Threats")
 
-    _section_title(slide, Inches(0.8), Inches(0.4), Inches(11), "Opportunities & Threats")
-
-    opportunities = []
-    threats = []
-    current_list = None
+    opps, threats = [], []
+    cur = None
     for line in section_text.split("\n"):
-        stripped = line.strip().lower()
-        if "opportunit" in stripped and (":" in stripped or stripped.startswith("#")):
-            current_list = "opp"
-        elif "threat" in stripped and (":" in stripped or stripped.startswith("#")):
-            current_list = "threat"
-        elif "gap" in stripped and (":" in stripped or stripped.startswith("#")):
-            current_list = None
+        s = line.strip().lower()
+        if "opportunit" in s and (":" in s or s.startswith("#")):
+            cur = "o"
+        elif "threat" in s and (":" in s or s.startswith("#")):
+            cur = "t"
+        elif "gap" in s and (":" in s or s.startswith("#")):
+            cur = None
 
         raw = line.strip()
-        is_bullet = raw.startswith(("-", "*", "•")) or re.match(r'^\d+[\.\)]', raw)
-        if current_list and is_bullet:
-            clean = re.sub(r'^[-*•]\s*', '', raw)
-            clean = re.sub(r'^\d+[\.\)]\s*', '', clean)
-            clean = _clean_markdown(clean)
-            if clean and len(clean) > 3:
-                if current_list == "opp":
-                    opportunities.append(clean)
-                elif current_list == "threat":
-                    threats.append(clean)
+        is_b = raw.startswith(("-", "*", "•")) or re.match(r'^\d+[\.\)]', raw)
+        if cur and is_b:
+            c = re.sub(r'^[-*•]\s*', '', raw)
+            c = re.sub(r'^\d+[\.\)]\s*', '', c)
+            c = _clean(c)
+            if c and len(c) > 3:
+                (opps if cur == "o" else threats).append(c)
 
     # Left: Opportunities
-    _add_rounded_card(slide, Inches(0.8), Inches(1.2), Inches(5.7), Inches(5.8))
-    _add_shape(slide, Inches(0.8), Inches(1.2), Inches(5.7), Inches(0.06), ACCENT_GREEN)
-    _add_text(slide, Inches(1.1), Inches(1.4), Inches(5), Inches(0.5),
-              "Opportunities", font_size=20, color=ACCENT_GREEN, bold=True)
-    if opportunities:
-        txBox = slide.shapes.add_textbox(Inches(1.1), Inches(2.1), Inches(5.2), Inches(4.7))
+    _text(slide, Inches(0.8), Inches(1.3), Inches(5.5), Inches(0.4),
+          "Opportunities", size=16, color=ACCENT_TEAL, bold=True, font=FONT_TITLE)
+    _line(slide, Inches(0.8), Inches(1.75), Inches(5.5))
+    if opps:
+        txBox = slide.shapes.add_textbox(
+            Inches(0.8), Inches(1.95), Inches(5.5), Inches(5.0))
         tf = txBox.text_frame
         tf.word_wrap = True
-        _add_bullets(tf, opportunities[:5], font_size=13, bold_label=True,
-                     accent_color=ACCENT_GREEN)
+        _bullets(tf, opps[:6], size=13, label_color=ACCENT_TEAL)
+
+    # Divider
+    _rect(slide, Inches(6.65), Inches(1.3), Inches(0.015), Inches(5.5), RULE_COLOR)
 
     # Right: Threats
-    _add_rounded_card(slide, Inches(6.8), Inches(1.2), Inches(5.7), Inches(5.8))
-    _add_shape(slide, Inches(6.8), Inches(1.2), Inches(5.7), Inches(0.06), ACCENT_RED)
-    _add_text(slide, Inches(7.1), Inches(1.4), Inches(5), Inches(0.5),
-              "Threats", font_size=20, color=ACCENT_RED, bold=True)
+    _text(slide, Inches(7.0), Inches(1.3), Inches(5.5), Inches(0.4),
+          "Threats", size=16, color=ACCENT_RED, bold=True, font=FONT_TITLE)
+    _line(slide, Inches(7.0), Inches(1.75), Inches(5.5))
     if threats:
-        txBox = slide.shapes.add_textbox(Inches(7.1), Inches(2.1), Inches(5.2), Inches(4.7))
+        txBox = slide.shapes.add_textbox(
+            Inches(7.0), Inches(1.95), Inches(5.5), Inches(5.0))
         tf = txBox.text_frame
         tf.word_wrap = True
-        _add_bullets(tf, threats[:5], font_size=13, bold_label=True,
-                     accent_color=ACCENT_RED)
+        _bullets(tf, threats[:6], size=13, label_color=ACCENT_RED)
 
 
-def _build_recommendations(prs, section_text):
-    """Slide: Strategic Recommendations with timeline columns."""
+def _slide_recommendations(prs, section_text):
     slide = prs.slides.add_slide(_get_blank_layout(prs))
-    _set_slide_bg(slide, BG_WHITE)
-
-    _section_title(slide, Inches(0.8), Inches(0.4), Inches(11), "Strategic Recommendations")
+    _bg(slide)
+    _section_header(slide, "Strategic Recommendations")
 
     timeframes = [
-        ("Next 30 Days", ACCENT_GREEN, []),
-        ("Next 3 Months", ACCENT_BLUE, []),
-        ("Next 12 Months", ACCENT_PURPLE, []),
+        ("Immediate (30 Days)", BCG_GREEN, []),
+        ("Short-Term (3 Months)", ACCENT_TEAL, []),
+        ("Long-Term (12 Months)", RGBColor(0x4A, 0x5A, 0x6A), []),
     ]
 
-    current_idx = None
+    idx = None
     for line in section_text.split("\n"):
-        stripped = line.strip().lower()
-        if "immediate" in stripped or "30 day" in stripped or "next 30" in stripped:
-            current_idx = 0
-        elif "short" in stripped or "3 month" in stripped or "next 3" in stripped:
-            current_idx = 1
-        elif "long" in stripped or "12 month" in stripped or "next 12" in stripped:
-            current_idx = 2
+        s = line.strip().lower()
+        if "immediate" in s or "30 day" in s or "next 30" in s:
+            idx = 0
+        elif "short" in s or "3 month" in s or "next 3" in s:
+            idx = 1
+        elif "long" in s or "12 month" in s or "next 12" in s:
+            idx = 2
 
         raw = line.strip()
-        is_bullet = raw.startswith(("-", "*", "•")) or re.match(r'^\d+[\.\)]', raw)
-        if current_idx is not None and is_bullet:
-            clean = re.sub(r'^[-*•]\s*', '', raw)
-            clean = re.sub(r'^\d+[\.\)]\s*', '', clean)
-            clean = _clean_markdown(clean)
-            clean = re.sub(r'\[.\]', '', clean).strip()
-            if clean and len(clean) > 3:
-                timeframes[current_idx][2].append(clean)
+        is_b = raw.startswith(("-", "*", "•")) or re.match(r'^\d+[\.\)]', raw)
+        if idx is not None and is_b:
+            c = re.sub(r'^[-*•]\s*', '', raw)
+            c = re.sub(r'^\d+[\.\)]\s*', '', c)
+            c = _clean(c)
+            c = re.sub(r'\[.\]', '', c).strip()
+            if c and len(c) > 3:
+                timeframes[idx][2].append(c)
 
-    col_width = Inches(3.8)
+    col_w = Inches(3.8)
     gap = Inches(0.15)
     for i, (label, color, items) in enumerate(timeframes):
-        left = Inches(0.8) + (col_width + gap) * i
-        _add_rounded_card(slide, left, Inches(1.2), col_width, Inches(5.8))
-        _add_shape(slide, left, Inches(1.2), col_width, Inches(0.06), color)
-        _add_text(slide, left + Inches(0.2), Inches(1.4), col_width - Inches(0.4),
-                  Inches(0.5), label, font_size=18, color=color, bold=True)
+        left = Inches(0.8) + (col_w + gap) * i
+        # Column header
+        _rect(slide, left, Inches(1.3), col_w, Inches(0.04), color)
+        _text(slide, left + Inches(0.1), Inches(1.45), col_w - Inches(0.2),
+              Inches(0.4), label, size=14, color=color, bold=True, font=FONT_TITLE)
+        _line(slide, left, Inches(1.9), col_w)
 
         if items:
             txBox = slide.shapes.add_textbox(
-                left + Inches(0.2), Inches(2.1), col_width - Inches(0.4), Inches(4.7))
+                left + Inches(0.1), Inches(2.1), col_w - Inches(0.2), Inches(4.8))
             tf = txBox.text_frame
             tf.word_wrap = True
-            _add_bullets(tf, items[:5], font_size=12, color=MED_TEXT,
-                         bold_label=True, accent_color=color)
+            _bullets(tf, items[:5], size=12, color=MED_TEXT, label_color=color)
+
+    # Vertical dividers
+    _rect(slide, Inches(0.8) + col_w + gap / 2, Inches(1.3),
+          Inches(0.015), Inches(5.5), RULE_COLOR)
+    _rect(slide, Inches(0.8) + (col_w + gap) * 2 - gap / 2, Inches(1.3),
+          Inches(0.015), Inches(5.5), RULE_COLOR)
 
 
-def _build_closing_slide(prs):
-    """Final slide with branding."""
+def _slide_closing(prs):
     slide = prs.slides.add_slide(_get_blank_layout(prs))
-    _set_slide_bg(slide, TITLE_BG)
+    _bg(slide, TITLE_BG)
 
-    _add_shape(slide, Inches(0), Inches(0), SLIDE_WIDTH, Inches(0.08), BG_WHITE)
+    _rect(slide, Inches(0), Inches(0), SLIDE_WIDTH, Inches(0.04),
+          RGBColor(0x00, 0x8A, 0x68))
 
-    _add_text(slide, Inches(1), Inches(2.3), Inches(11), Inches(1),
-              "Thank You", font_size=48, color=BG_WHITE, bold=True,
-              alignment=PP_ALIGN.CENTER)
+    _text(slide, Inches(1.5), Inches(2.5), Inches(10), Inches(0.8),
+          "Thank You", size=44, color=BG_WHITE, bold=True, font=FONT_TITLE,
+          align=PP_ALIGN.LEFT)
 
-    _add_shape(slide, Inches(5.5), Inches(3.5), Inches(2.3), Inches(0.04), BG_WHITE)
+    _rect(slide, Inches(1.5), Inches(3.5), Inches(2.5), Inches(0.02), BG_WHITE)
 
-    _add_text(slide, Inches(1), Inches(3.8), Inches(11), Inches(0.6),
-              "AI Market Research Agent", font_size=20,
-              color=RGBColor(0xBF, 0xDB, 0xFE), bold=True, alignment=PP_ALIGN.CENTER)
+    _text(slide, Inches(1.5), Inches(3.8), Inches(10), Inches(0.5),
+          "AI Market Research Agent", size=18,
+          color=RGBColor(0x7F, 0xBF, 0xAD), bold=True)
 
-    _add_text(slide, Inches(1), Inches(4.5), Inches(11), Inches(0.6),
-              "Multi-Agent Intelligence System  |  Powered by CrewAI",
-              font_size=16, color=RGBColor(0x93, 0xB8, 0xEF), alignment=PP_ALIGN.CENTER)
+    _text(slide, Inches(1.5), Inches(4.4), Inches(10), Inches(0.4),
+          "Multi-Agent Intelligence System", size=14,
+          color=RGBColor(0x5A, 0x9A, 0x8A))
 
-    _add_shape(slide, Inches(0), Inches(7.42), SLIDE_WIDTH, Inches(0.08), BG_WHITE)
+    _text(slide, Inches(1.5), Inches(6.5), Inches(10), Inches(0.3),
+          "CONFIDENTIAL", size=9, color=RGBColor(0x5A, 0x9A, 0x8A),
+          bold=True)
+
+    _rect(slide, Inches(0), Inches(7.46), SLIDE_WIDTH, Inches(0.04),
+          RGBColor(0x00, 0x8A, 0x68))
 
 
 # ── Main Generator ────────────────────────────────────────
 
 def generate_pptx(report_text: str, company: str, competitors: list[str],
                   output_path: str) -> str:
-    """
-    Convert a markdown report into a professional PowerPoint presentation.
-
-    Args:
-        report_text: The raw markdown report content
-        company: Company name
-        competitors: List of competitor names
-        output_path: Path to save the .pptx file
-
-    Returns:
-        The output file path
-    """
     output_dir = os.path.dirname(output_path)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
@@ -647,61 +616,52 @@ def generate_pptx(report_text: str, company: str, competitors: list[str],
     date_str = datetime.now().strftime("%B %d, %Y")
     sections = _parse_sections(report_text)
 
-    # Slide 1: Title
-    _build_title_slide(prs, company, competitors, date_str)
+    _slide_title(prs, company, competitors, date_str)
 
-    # Slide 2: Executive Summary
     for key in sections:
         if "executive" in key.lower() or "summary" in key.lower():
-            _build_executive_summary(prs, sections[key])
+            _slide_exec_summary(prs, sections[key])
             break
 
-    # Slide 3: Market Landscape
     for key in sections:
         if "market" in key.lower() and "landscape" in key.lower():
-            _build_market_landscape(prs, sections[key])
+            _slide_market(prs, sections[key])
             break
 
-    # Slide 4+: Competitor Profiles
     for key in sections:
         if "competitor" in key.lower() and "profile" in key.lower():
-            section_text = sections[key]
+            st = sections[key]
             for comp in competitors:
-                if comp.lower() in section_text.lower():
-                    _build_competitor_profile(prs, comp, section_text)
+                if comp.lower() in st.lower():
+                    _slide_competitor(prs, comp, st)
                     break
             else:
-                _build_competitor_profile(prs, ", ".join(competitors), section_text)
+                _slide_competitor(prs, ", ".join(competitors), st)
             break
 
-    # Slide: Competitive Analysis / Matrix
     for key in sections:
         if "competitive" in key.lower() and "analy" in key.lower():
-            _build_competitive_matrix(prs, sections[key])
+            _slide_matrix(prs, sections[key])
             if "swot" in sections[key].lower():
-                _build_swot(prs, sections[key])
+                _slide_swot(prs, sections[key])
             break
 
-    # Slide: SWOT (standalone)
     for key in sections:
         if "swot" in key.lower():
-            _build_swot(prs, sections[key])
+            _slide_swot(prs, sections[key])
             break
 
-    # Slide: Opportunities & Threats
     for key in sections:
         if "opportunit" in key.lower() or "threat" in key.lower():
-            _build_opportunities_threats(prs, sections[key])
+            _slide_opps_threats(prs, sections[key])
             break
 
-    # Slide: Recommendations
     for key in sections:
         if "recommend" in key.lower() or "strateg" in key.lower():
-            _build_recommendations(prs, sections[key])
+            _slide_recommendations(prs, sections[key])
             break
 
-    # Closing slide
-    _build_closing_slide(prs)
+    _slide_closing(prs)
 
     prs.save(output_path)
     return output_path
