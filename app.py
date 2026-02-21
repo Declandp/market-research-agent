@@ -107,14 +107,16 @@ def run_research(company: str, competitors: list[str], progress_placeholder):
     return report_text
 
 
-def generate_pptx_bytes(report_text: str, company: str, competitors: list[str]) -> bytes:
+def generate_pptx_bytes(report_text: str, company: str, competitors: list[str],
+                        theme: str = "classic_green", style: str = "consulting") -> bytes:
     """Generate PPTX and return as bytes for download."""
     from src.tools.ppt_generator import generate_pptx
 
     with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as tmp:
         tmp_path = tmp.name
 
-    generate_pptx(report_text, company, competitors, tmp_path)
+    generate_pptx(report_text, company, competitors, tmp_path,
+                  theme=theme, style=style)
 
     with open(tmp_path, "rb") as f:
         pptx_bytes = f.read()
@@ -177,10 +179,30 @@ with st.form("research_form"):
 
     st.caption("💡 Tip: Start with 1-2 competitors for faster results. More competitors = longer processing time.")
 
+    # Presentation options
+    st.markdown("#### Presentation Options")
+    opt_col1, opt_col2 = st.columns(2)
+    with opt_col1:
+        theme_display = st.selectbox(
+            "Color Theme",
+            ["Classic Green", "Navy Blue", "Charcoal"],
+            help="Choose the color palette for your PowerPoint deck",
+        )
+    with opt_col2:
+        style_display = st.selectbox(
+            "Template Style",
+            ["Consulting", "Corporate", "Minimal"],
+            help="Choose the layout style for your slides",
+        )
+
     submitted = st.form_submit_button("🚀 Generate Report", use_container_width=True)
 
 # ── Run Research ─────────────────────────────────────────
 if submitted:
+    # Map display names → internal keys
+    theme_key = {"Classic Green": "classic_green", "Navy Blue": "navy_blue", "Charcoal": "charcoal"}[theme_display]
+    style_key = {"Consulting": "consulting", "Corporate": "corporate", "Minimal": "minimal"}[style_display]
+
     if not company.strip():
         st.error("Please enter a company name.")
     elif not competitors_input.strip():
@@ -224,7 +246,8 @@ if submitted:
 
             # Phase 2: Generate PPT
             status.info("📊 Generating PowerPoint presentation...")
-            pptx_bytes = generate_pptx_bytes(report_text, company, competitors)
+            pptx_bytes = generate_pptx_bytes(report_text, company, competitors,
+                                               theme=theme_key, style=style_key)
             progress_bar.progress(100)
 
             status.success("✅ Research complete! Your report is ready.")
